@@ -1,0 +1,28 @@
+# application properties for test
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    jdbc-url: "jdbc:h2:mem:testdb"
+    username: "sa"
+    password: ""
+    hikari:
+      connection-timeout: 5000
+      validation-timeout: 1000
+      minimum-idle: 5
+      max-lifetime: 2400000
+      maximum-pool-size: 20
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+        dialect: org.hibernate.dialect.H2Dialect
+        show_sql: true
+
+#p6spy jpa logging level
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: true
