@@ -6,6 +6,7 @@ import com.kakaobank.KakaoFriendTransfer.domain.Transfer;
 import com.kakaobank.KakaoFriendTransfer.domain.TransferStatus;
 import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferDto;
 import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferSearchParam;
+import com.kakaobank.KakaoFriendTransfer.mapper.TransferMapper;
 import com.kakaobank.KakaoFriendTransfer.repository.CustomerAccountRepository;
 import com.kakaobank.KakaoFriendTransfer.repository.TransferRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -24,6 +27,14 @@ public class TransferServiceImpl implements TransferService{
     private final TransferRepository transferRepository;
     private final CustomerAccountRepository customerAccountRepository;
     private final GlobalExceptionFactory globalExceptionFactory;
+    private final TransferMapper transferMapper;
+
+    @Override
+    public TransferDto findTransfer(Long id) {
+        Optional<Transfer> transfer = transferRepository.findById(id);
+
+        return (!transfer.isEmpty()) ? transferMapper.entityToDto(transfer.get()) : null;
+    }
 
     @Override
     public List<TransferDto> findTransferList(TransferSearchParam searchParam) {
@@ -33,6 +44,18 @@ public class TransferServiceImpl implements TransferService{
     @Override
     public Page<TransferDto> findTransferPage(TransferSearchParam searchParam, Pageable pageable) {
         return transferRepository.searchTransferPage(searchParam, pageable);
+    }
+
+    @Override
+    public List<TransferDto> findTransferListBySender(String sendKakaoUserId) {
+        return transferRepository.findBySendCustomerAccountKakaoFriendUserId(sendKakaoUserId)
+                .stream().map(transferMapper::entityToDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TransferDto> findTransferListByReceiver(String receiveKakaoUserId) {
+        return transferRepository.findByReceiveCustomerAccountKakaoFriendUserId(receiveKakaoUserId)
+                .stream().map(transferMapper::entityToDto).collect(Collectors.toList());
     }
 
     @Override

@@ -1,5 +1,8 @@
 package com.kakaobank.KakaoFriendTransfer.service;
 
-public interface CustomerAccountService {
+import com.kakaobank.KakaoFriendTransfer.domain.CustomerAccount;
+import com.kakaobank.KakaoFriendTransfer.domain.KakaoFriend;
 
+public interface CustomerAccountService {
+    CustomerAccount findByKakaoFriend(KakaoFriend kakaoFriend);
 }

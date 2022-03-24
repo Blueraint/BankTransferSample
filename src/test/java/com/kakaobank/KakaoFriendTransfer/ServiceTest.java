@@ -131,9 +131,11 @@ public class ServiceTest {
     public void setErrCodeMap() {
         ErrCode errCode100 = new ErrCode("100","Invalid Sender/Receiver Account.");
         ErrCode errCode200 = new ErrCode("200","TransferAmt must lower than balance in sender's account.");
+        ErrCode errCode300 = new ErrCode("300","Sender/Receiver Account must not null.");
 
         errCodeRepository.save(errCode100);
         errCodeRepository.save(errCode200);
+        errCodeRepository.save(errCode300);
     }
 
     @Test

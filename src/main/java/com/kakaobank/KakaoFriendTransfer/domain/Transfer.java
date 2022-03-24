@@ -41,8 +41,8 @@ public class Transfer extends DateEntity {
     private TransferStatus transferStatus;
 
     public Transfer(TransferDto transferDto) {
-        this.sendCustomerAccount = transferDto.getSendCustomerAccount();
-        this.receiveCustomerAccount = transferDto.getReceiveCustomerAccount();
+        this.sendCustomerAccount = new CustomerAccount(new Bank(transferDto.getSendBankCode()), transferDto.getSendAccountNumber());
+        this.receiveCustomerAccount = new CustomerAccount(new Bank(transferDto.getReceiveBankCode()), transferDto.getReceiveAccountNumber());
         this.transferAmt = transferDto.getTransferAmt();
 
         this.transferStatus = TransferStatus.WAITING;

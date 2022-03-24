@@ -12,4 +12,6 @@ public interface TransferRepository extends JpaRepository<Transfer, Long>, Trans
     List<Transfer> findBySendCustomerAccount(CustomerAccount sendCustomerAccount);
     List<Transfer> findByReceiveCustomerAccount(CustomerAccount receiveCustomerAccount);
     List<Transfer> findByTransferStatus(TransferStatus transferStatus);
+    List<Transfer> findBySendCustomerAccountKakaoFriendUserId(String userId);
+    List<Transfer> findByReceiveCustomerAccountKakaoFriendUserId(String userId);
 }

@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 
-public class GlobalException extends Exception {
+public class GlobalException extends IllegalArgumentException {
     private final String errCode;
 
     public GlobalException(String errCode, String message) {

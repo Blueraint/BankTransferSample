@@ -31,4 +31,8 @@ public class Bank extends DateEntity {
         this.regDate = LocalDateTime.now();
         this.modifyDate = LocalDateTime.now();
     }
+
+    public Bank(String bankCode) {
+        this.bankCode = bankCode;
+    }
 }

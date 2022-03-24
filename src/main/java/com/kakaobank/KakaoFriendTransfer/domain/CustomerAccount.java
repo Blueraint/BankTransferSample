@@ -53,6 +53,11 @@ public class CustomerAccount extends DateEntity {
         this.modifyDate = LocalDateTime.now();
     }
 
+    public CustomerAccount(Bank bank, String accountNumber) {
+        this.bank = bank;
+        this.accountNumber = accountNumber;
+    }
+
     @Override
     public String toString() {
         return "CustomerAccount{" +

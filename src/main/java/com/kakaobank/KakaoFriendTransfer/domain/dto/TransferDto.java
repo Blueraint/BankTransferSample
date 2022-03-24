@@ -9,10 +9,14 @@ import java.time.LocalDateTime;
 @Data
 public class TransferDto {
     // Api find Object
-    private CustomerAccount sendCustomerAccount;
+//    private CustomerAccount sendCustomerAccount;
+    private String sendBankCode;
+    private String sendAccountNumber;
 
     // Api find Object
-    private CustomerAccount receiveCustomerAccount;
+//    private CustomerAccount receiveCustomerAccount;
+    private String receiveBankCode;
+    private String receiveAccountNumber;
 
     private Long transferAmt;
 

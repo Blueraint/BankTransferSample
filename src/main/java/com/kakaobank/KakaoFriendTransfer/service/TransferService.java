@@ -10,8 +10,13 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface TransferService {
+    TransferDto findTransfer(Long id);
+
     List<TransferDto> findTransferList(TransferSearchParam searchParam);
     Page<TransferDto> findTransferPage(TransferSearchParam searchParam, Pageable pageable);
+
+    List<TransferDto> findTransferListBySender(String sendKakaoUserId);
+    List<TransferDto> findTransferListByReceiver(String receiveKakaoUserId);
 
     boolean transferAccountValidation(Transfer transfer);
 
