@@ -4,13 +4,15 @@ import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalException;
 import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalExceptionFactory;
 import com.kakaobank.KakaoFriendTransfer.domain.*;
 import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferDto;
-import com.kakaobank.KakaoFriendTransfer.repository.*;
+import com.kakaobank.KakaoFriendTransfer.mapper.TransferMapper;
+import com.kakaobank.KakaoFriendTransfer.repository.jpa.*;
 import com.kakaobank.KakaoFriendTransfer.service.KakaoFriendService;
 import com.kakaobank.KakaoFriendTransfer.service.TransferService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,9 +38,13 @@ public class ServiceTest {
     @Autowired
     private TransferService transferService;
     @Autowired
-    GlobalExceptionFactory globalExceptionFactory;
+    private GlobalExceptionFactory globalExceptionFactory;
+    @Autowired
+    private TransferMapper transferMapper;
+
 
     @BeforeEach
+    @Transactional
     public void setData() {
         // Bank
         List<Bank> bankList = new ArrayList<>();
@@ -55,7 +61,7 @@ public class ServiceTest {
         bank3.setBankName("SHINHAN");
 
         bankList.add(bank); bankList.add(bank2); bankList.add(bank3);
-        bankRepository.saveAllAndFlush(bankList);
+//        bankRepository.saveAllAndFlush(bankList);
 
 
         //Customer
@@ -76,7 +82,7 @@ public class ServiceTest {
         customer3.setCi("0889013929222");
 
         customerList.add(customer); customerList.add(customer2); customerList.add(customer3);
-        customerRepository.saveAllAndFlush(customerList);
+//        customerRepository.saveAllAndFlush(customerList);
 
 
         // KakaoFriend
@@ -90,7 +96,7 @@ public class ServiceTest {
         kakaoFriend3.setUserId("sampleId3");
 
         kakaoFriendList.add(kakaoFriend); kakaoFriendList.add(kakaoFriend2); kakaoFriendList.add(kakaoFriend3);
-        kakaoFriendRepository.saveAllAndFlush(kakaoFriendList);
+//        kakaoFriendRepository.saveAllAndFlush(kakaoFriendList);
 
         // CustomerAccount
         Bank findBank = bankRepository.findByBankCode("003").get();
@@ -110,33 +116,40 @@ public class ServiceTest {
         customerAccount2.setBank(findBank);
         customerAccount2.setCertified(true);
 
-        customerAccountRepository.saveAndFlush(customerAccount);
-        customerAccountRepository.saveAndFlush(customerAccount2);
+//        customerAccountRepository.saveAndFlush(customerAccount);
+//        customerAccountRepository.saveAndFlush(customerAccount2);
 
 
         // Transfer
-        /*
+
         TransferDto transferDto = new TransferDto();
-        transferDto.setSendCustomerAccount(customerAccount);
-        transferDto.setReceiveCustomerAccount(customerAccount2);
+        transferDto.setSendBankCode(customerAccount.getBank().getBankCode());
+        transferDto.setSendAccountNumber(customerAccount.getAccountNumber());
+        transferDto.setReceiveBankCode(customerAccount2.getBank().getBankCode());
+        transferDto.setReceiveAccountNumber(customerAccount2.getAccountNumber());
         transferDto.setTransferAmt(10000L);
 
-        Transfer transfer = new Transfer(transferDto);
+        Transfer transfer = transferMapper.dtoToNewEntity(transferDto);
         transferRepository.saveAndFlush(transfer);
 
-         */
+
     }
 
+    /*
     @BeforeEach
+    @Transactional
     public void setErrCodeMap() {
         ErrCode errCode100 = new ErrCode("100","Invalid Sender/Receiver Account.");
         ErrCode errCode200 = new ErrCode("200","TransferAmt must lower than balance in sender's account.");
-        ErrCode errCode300 = new ErrCode("300","Sender/Receiver Account must not null.");
+        ErrCode errCode300 = new ErrCode("300","Could not find Sender/Receiver Account. Account must not be null.");
+        ErrCode errCode400 = new ErrCode("400","Could not find Transfer Information");
 
         errCodeRepository.save(errCode100);
         errCodeRepository.save(errCode200);
         errCodeRepository.save(errCode300);
     }
+
+     */
 
     @Test
     public void kakaoFriendServiceTest() {
@@ -145,15 +158,12 @@ public class ServiceTest {
 
     @Test
     public void transferExceptionTest() {
-        CustomerAccount customerAccount = customerAccountRepository.findByAccountNumber("1234ABC").get();
-        CustomerAccount customerAccount2 = customerAccountRepository.findByAccountNumber("9999TTTT").get();
-
         TransferDto transferDto = new TransferDto();
-        transferDto.setSendCustomerAccount(customerAccount);
-        transferDto.setReceiveCustomerAccount(customerAccount2);
+        transferDto.setSendBankCode("003"); transferDto.setSendAccountNumber("1234ABC");
+        transferDto.setReceiveBankCode("003"); transferDto.setReceiveAccountNumber("9999TTTT");
         transferDto.setTransferAmt(200000L);
 
-        Transfer transfer = new Transfer(transferDto);
+        Transfer transfer = transferMapper.dtoToNewEntity(transferDto);
 
         try {
             transferService.saveTransfer(transfer);
@@ -164,30 +174,29 @@ public class ServiceTest {
 
     @Test
     public void transferCancelServiceTest() throws GlobalException {
-        CustomerAccount customerAccount = customerAccountRepository.findByAccountNumber("1234ABC").get();
-        CustomerAccount customerAccount2 = customerAccountRepository.findByAccountNumber("9999TTTT").get();
-
         TransferDto transferDto = new TransferDto();
-        transferDto.setSendCustomerAccount(customerAccount);
-        transferDto.setReceiveCustomerAccount(customerAccount2);
+        transferDto.setSendBankCode("003"); transferDto.setSendAccountNumber("1234ABC");
+        transferDto.setReceiveBankCode("003"); transferDto.setReceiveAccountNumber("9999TTTT");
         transferDto.setTransferAmt(10000L);
 
-        Transfer transfer = new Transfer(transferDto);
+        Transfer transfer = transferMapper.dtoToNewEntity(transferDto);
 
         transferService.saveTransfer(transfer);
+        assertThat(transfer.getTransferStatus()).isEqualTo(TransferStatus.WAITING);
 
         transferRepository.flush();
 
-        assertThat(customerAccountRepository.findByAccountNumber("1234ABC").get().getBalance()).isEqualTo(90000L);
-        assertThat(customerAccountRepository.findByAccountNumber("9999TTTT").get().getBalance()).isEqualTo(50000L);
+        assertThat(customerAccountRepository.findByBankBankCodeAndAccountNumber("003","1234ABC").get().getBalance()).isEqualTo(90000L);
+        assertThat(customerAccountRepository.findByBankBankCodeAndAccountNumber("003","9999TTTT").get().getBalance()).isEqualTo(50000L);
 
-        transferService.cancelTransfer(transfer);
+        transferService.cancelTransfer(transfer.getId());
 
         transferRepository.flush();
 
+        CustomerAccount customerAccount = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","1234ABC").get();
         Transfer findTransfer = transferRepository.findBySendCustomerAccount(customerAccount).get(0);
-        CustomerAccount findCustomerAccount = customerAccountRepository.findByAccountNumber("1234ABC").get();
-        CustomerAccount findCustomerAccount2 = customerAccountRepository.findByAccountNumber("9999TTTT").get();
+        CustomerAccount findCustomerAccount = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","1234ABC").get();
+        CustomerAccount findCustomerAccount2 = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","9999TTTT").get();
 
         assertThat(findTransfer.getTransferStatus()).isEqualTo(TransferStatus.CANCEL);
         assertThat(findCustomerAccount.getBalance()).isEqualTo(100000L);
@@ -196,33 +205,39 @@ public class ServiceTest {
 
     @Test
     public void transferConfirmServiceTest() throws GlobalException {
-        CustomerAccount customerAccount = customerAccountRepository.findByAccountNumber("1234ABC").get();
-        CustomerAccount customerAccount2 = customerAccountRepository.findByAccountNumber("9999TTTT").get();
-
         TransferDto transferDto = new TransferDto();
-        transferDto.setSendCustomerAccount(customerAccount);
-        transferDto.setReceiveCustomerAccount(customerAccount2);
+        transferDto.setSendBankCode("003"); transferDto.setSendAccountNumber("1234ABC");
+        transferDto.setReceiveBankCode("003"); transferDto.setReceiveAccountNumber("9999TTTT");
         transferDto.setTransferAmt(10000L);
 
-        Transfer transfer = new Transfer(transferDto);
+        Transfer transfer = transferMapper.dtoToNewEntity(transferDto);
 
         transferService.saveTransfer(transfer);
+        assertThat(transfer.getTransferStatus()).isEqualTo(TransferStatus.WAITING);
 
         transferRepository.flush();
 
-        assertThat(customerAccountRepository.findByAccountNumber("1234ABC").get().getBalance()).isEqualTo(90000L);
-        assertThat(customerAccountRepository.findByAccountNumber("9999TTTT").get().getBalance()).isEqualTo(50000L);
+        assertThat(customerAccountRepository.findByBankBankCodeAndAccountNumber("003","1234ABC").get().getBalance()).isEqualTo(90000L);
+        assertThat(customerAccountRepository.findByBankBankCodeAndAccountNumber("003","9999TTTT").get().getBalance()).isEqualTo(50000L);
 
-        transferService.confirmTransfer(transfer);
+        transferService.confirmTransfer(transfer.getId());
 
         transferRepository.flush();
 
+        CustomerAccount customerAccount = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","1234ABC").get();
         Transfer findTransfer = transferRepository.findBySendCustomerAccount(customerAccount).get(0);
-        CustomerAccount findCustomerAccount = customerAccountRepository.findByAccountNumber("1234ABC").get();
-        CustomerAccount findCustomerAccount2 = customerAccountRepository.findByAccountNumber("9999TTTT").get();
+        CustomerAccount findCustomerAccount = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","1234ABC").get();
+        CustomerAccount findCustomerAccount2 = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","9999TTTT").get();
 
         assertThat(findTransfer.getTransferStatus()).isEqualTo(TransferStatus.SUCCESS);
         assertThat(findCustomerAccount.getBalance()).isEqualTo(90000L);
         assertThat(findCustomerAccount2.getBalance()).isEqualTo(60000L);
+    }
+
+    @Test
+    public void findTransfer() {
+        List<Transfer> transferList= transferRepository.findAll();
+
+        System.out.println("#####" + transferService.findTransfer(transferList.get(0).getId()).toString());
     }
 }

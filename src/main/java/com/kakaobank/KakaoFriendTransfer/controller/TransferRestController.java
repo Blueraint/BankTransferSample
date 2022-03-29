@@ -21,40 +21,42 @@ public class TransferRestController {
 
     @PostMapping
     public ResponseEntity createTransfer(@RequestBody TransferDto transferDto) throws GlobalException {
-        Transfer transfer = transferMapper.dtoToEntity(transferDto);
+        Transfer transfer = transferMapper.dtoToNewEntity(transferDto);
         transferService.saveTransfer(transfer);
 
-        return new ResponseEntity<>(transferDto, HttpStatus.OK);
+        return new ResponseEntity<>(transfer, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
     public TransferDto findTransfer(@PathVariable Long id) {
-        return transferService.findTransfer(id);
+        return transferMapper.entityToDto(transferService.findTransfer(id));
     }
 
     @GetMapping("/sender/{kakaoUserId}")
-    public List<TransferDto> findTransferBySender(@PathVariable String kakaoUserId) {
+    public List<Transfer> findTransferBySender(@PathVariable String kakaoUserId) {
         return transferService.findTransferListBySender(kakaoUserId);
     }
 
     @GetMapping("/receiver/{kakaoUserId}")
-    public List<TransferDto> findTransferByReceiver(@PathVariable String kakaoUserId) {
+    public List<Transfer> findTransferByReceiver(@PathVariable String kakaoUserId) {
         return transferService.findTransferListByReceiver(kakaoUserId);
     }
 
-    @DeleteMapping
-    public ResponseEntity cancelTransfer(@RequestBody TransferDto transferDto) throws GlobalException {
-        Transfer transfer = transferMapper.dtoToEntity(transferDto);
-        transferService.cancelTransfer(transfer);
+    @DeleteMapping("/{id}")
+    public ResponseEntity cancelTransfer(@PathVariable Long id) throws GlobalException {
 
-        return new ResponseEntity<>(transferDto, HttpStatus.OK);
+        Transfer result = transferService.cancelTransfer(id);
+
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
-    @PutMapping
-    public ResponseEntity confirmTransfer(@RequestBody TransferDto transferDto) throws GlobalException {
-        Transfer transfer = transferMapper.dtoToEntity(transferDto);
-        transferService.cancelTransfer(transfer);
+    @PutMapping("/{id}")
+    public ResponseEntity confirmTransfer(@PathVariable Long id) throws GlobalException {
+        Transfer transfer = new Transfer();
+        transfer.setId(id);
 
-        return new ResponseEntity<>(transferDto, HttpStatus.OK);
+        Transfer result = transferService.confirmTransfer(id);
+
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 }

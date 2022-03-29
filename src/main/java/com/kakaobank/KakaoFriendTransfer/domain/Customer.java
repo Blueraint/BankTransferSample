@@ -7,10 +7,19 @@ import lombok.Setter;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+/*
+@SequenceGenerator(
+        name = "CUSTOMER_ID_GENERATOR",
+        sequenceName = "CUSTOMER_ID_SEQ",
+        initialValue = 1,
+        allocationSize = 100
+)
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -37,7 +46,7 @@ public class Customer extends DateEntity {
         this.ci = ci;
         this.name = name;
         this.address = address;
-        this.regDate = LocalDateTime.now();
-        this.modifyDate = LocalDateTime.now();
+        this.regDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        this.modifyDate = regDate;
     }
 }

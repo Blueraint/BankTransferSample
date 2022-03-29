@@ -1,24 +1,25 @@
 package com.kakaobank.KakaoFriendTransfer.service;
 
-import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalExceptionFactory;
 import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalException;
+import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalExceptionFactory;
 import com.kakaobank.KakaoFriendTransfer.domain.Transfer;
 import com.kakaobank.KakaoFriendTransfer.domain.TransferStatus;
-import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferDto;
-import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferSearchParam;
 import com.kakaobank.KakaoFriendTransfer.mapper.TransferMapper;
-import com.kakaobank.KakaoFriendTransfer.repository.CustomerAccountRepository;
-import com.kakaobank.KakaoFriendTransfer.repository.TransferRepository;
+import com.kakaobank.KakaoFriendTransfer.repository.jpa.CustomerAccountRepository;
+import com.kakaobank.KakaoFriendTransfer.repository.jpa.TransferRepository;
+import com.kakaobank.KakaoFriendTransfer.repository.redis.RedisTransferRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
 
 @Slf4j
 @Service
@@ -28,34 +29,47 @@ public class TransferServiceImpl implements TransferService{
     private final CustomerAccountRepository customerAccountRepository;
     private final GlobalExceptionFactory globalExceptionFactory;
     private final TransferMapper transferMapper;
+    private final RedisTransferRepository redisTransferRepository;
 
+    /*
+    * RedisCache 관련
+    * https://daddyprogrammer.org/post/3217/redis-springboot2-spring-data-redis-cacheable-cacheput-cacheevict/
+    * https://sundries-in-myidea.tistory.com/110
+    * https://www.baeldung.com/spring-boot-redis-cache
+    * */
     @Override
-    public TransferDto findTransfer(Long id) {
-        Optional<Transfer> transfer = transferRepository.findById(id);
+    @Cacheable(key = "#id", value="transfer", unless = "#result == null")
+    public Transfer findTransfer(Long id) {
+        // 1. Find by Redis
+        /*
+        Transfer redisTransfer = redisTransferRepository.findById(id);
 
-        return (!transfer.isEmpty()) ? transferMapper.entityToDto(transfer.get()) : null;
+        if(redisTransfer != null) {
+            log.info("(Transfer)Search for Redis : " + redisTransfer.toString());
+            return redisTransfer;
+        }
+         */
+
+        // 2. Find by Database
+        Optional<Transfer> optionalTransfer = transferRepository.findById(id);
+        // 2-1. Save(Update) Redis
+
+        if(!optionalTransfer.isEmpty()) {
+            Transfer transfer = optionalTransfer.get();
+//            redisTransferRepository.save(transfer);
+            return transfer;
+        }
+        return null;
     }
 
     @Override
-    public List<TransferDto> findTransferList(TransferSearchParam searchParam) {
-        return transferRepository.searchTransfer(searchParam);
+    public List<Transfer> findTransferListBySender(String sendKakaoUserId) {
+        return transferRepository.findBySendCustomerAccountKakaoFriendUserId(sendKakaoUserId);
     }
 
     @Override
-    public Page<TransferDto> findTransferPage(TransferSearchParam searchParam, Pageable pageable) {
-        return transferRepository.searchTransferPage(searchParam, pageable);
-    }
-
-    @Override
-    public List<TransferDto> findTransferListBySender(String sendKakaoUserId) {
-        return transferRepository.findBySendCustomerAccountKakaoFriendUserId(sendKakaoUserId)
-                .stream().map(transferMapper::entityToDto).collect(Collectors.toList());
-    }
-
-    @Override
-    public List<TransferDto> findTransferListByReceiver(String receiveKakaoUserId) {
-        return transferRepository.findByReceiveCustomerAccountKakaoFriendUserId(receiveKakaoUserId)
-                .stream().map(transferMapper::entityToDto).collect(Collectors.toList());
+    public List<Transfer> findTransferListByReceiver(String receiveKakaoUserId) {
+        return transferRepository.findByReceiveCustomerAccountKakaoFriendUserId(receiveKakaoUserId);
     }
 
     @Override
@@ -68,6 +82,23 @@ public class TransferServiceImpl implements TransferService{
 
     @Override
     @Transactional
+    @CachePut(key = "#id", value = "transfer")
+    public Transfer save(Transfer transfer) {
+        //  Save Database
+        transferRepository.save(transfer);
+
+        return transfer;
+    }
+
+    /*
+     * 동시성 제어를 위한 Pessimistic Lock(Database 수준에서 Account Lock을 건다!)
+     * Test 를 위해서 Thread Sleep 주입 후 동시성 제어 수행 -> DeadLock 방지
+     * 그러나 Locking 수준에 대해서 좀 더 생각해야 함!!!
+     * 참고 : https://isntyet.github.io/jpa/JPA-%EB%B9%84%EA%B4%80%EC%A0%81-%EC%9E%A0%EA%B8%88(Pessimistic-Lock)/ , https://velog.io/@lsb156/JPA-Optimistic-Lock-Pessimistic-Lock
+     */
+    @Override
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public void saveTransfer(Transfer transfer) throws GlobalException {
         if(!transferAccountValidation(transfer))
 //            throw new IllegalStateException("Invalid Sender/Receiver Account.");
@@ -85,14 +116,35 @@ public class TransferServiceImpl implements TransferService{
 
         log.debug("Create New Transfer : {}", transfer.toString());
         // 이체내역 저장
-        transferRepository.save(transfer);
+//        transferRepository.save(transfer);
+        save(transfer);
         // 계좌변경사항 저장
         customerAccountRepository.save(transfer.getSendCustomerAccount());
     }
 
     @Override
     @Transactional
-    public void cancelTransfer(Transfer transfer) {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    public Transfer cancelTransfer(Long id) {
+        /* 존재하는 거래내역 찾는 경우 Redis를 통해서 대기중인 이체내역을 Cache에서 찾아온다 */
+        Transfer transfer = findTransfer(id);
+        if(transfer == null)
+            throw globalExceptionFactory.globalExceptionBuilder("400");
+
+        // transfer search
+        /*
+        Optional<Transfer> optionalTransfer = transferRepository.findById(id);
+
+        if(optionalTransfer.isEmpty())
+            throw globalExceptionFactory.globalExceptionBuilder("400");
+
+        Transfer transfer = optionalTransfer.get();
+        */
+
+        // 상태가 이미 변경된 이체내역인 경우 에러 발생
+        if(!transfer.getTransferStatus().equals(TransferStatus.WAITING))
+            throw globalExceptionFactory.globalExceptionBuilder("500");
+
         // 감액되었던 송신자 계좌 잔액 복구
         transfer.increaseSenderBalance();
 
@@ -101,14 +153,37 @@ public class TransferServiceImpl implements TransferService{
 
         log.debug("Cancel Current Transfer : {}", transfer.toString());
         // 이체내역 update
-        transferRepository.save(transfer);
+//        transferRepository.save(transfer);
+        save(transfer);
         // 계좌변경사항 저장
         customerAccountRepository.save(transfer.getSendCustomerAccount());
+
+        return transfer;
     }
 
     @Override
     @Transactional
-    public void confirmTransfer(Transfer transfer) {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    public Transfer confirmTransfer(Long id) {
+        /* 존재하는 거래내역 찾는 경우 Redis를 통해서 대기중인 이체내역을 Cache에서 찾아온다 */
+        Transfer transfer = findTransfer(id);
+        if(transfer == null)
+            throw globalExceptionFactory.globalExceptionBuilder("400");
+
+        // transfer search
+        /*
+        Optional<Transfer> optionalTransfer = transferRepository.findById(id);
+
+        if(optionalTransfer.isEmpty())
+            throw globalExceptionFactory.globalExceptionBuilder("400");
+
+        Transfer transfer = optionalTransfer.get();
+         */
+
+        // 상태가 이미 변경된 이체내역인 경우 에러 발생
+        if(!transfer.getTransferStatus().equals(TransferStatus.WAITING))
+            throw globalExceptionFactory.globalExceptionBuilder("500");
+
         // 승인에 따른 수신자 계좌 잔액 증액
         transfer.increaseReceiverBalance();
 
@@ -117,8 +192,11 @@ public class TransferServiceImpl implements TransferService{
 
         log.debug("Confirm Transfer : {}", transfer.toString());
         // 이체내역 update
-        transferRepository.save(transfer);
+//        transferRepository.save(transfer);
+        save(transfer);
         // 계좌변경사항 저장
         customerAccountRepository.save(transfer.getReceiveCustomerAccount());
+
+        return transfer;
     }
 }

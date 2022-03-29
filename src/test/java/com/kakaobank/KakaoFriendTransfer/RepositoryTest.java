@@ -2,15 +2,18 @@ package com.kakaobank.KakaoFriendTransfer;
 
 import com.kakaobank.KakaoFriendTransfer.domain.*;
 import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferDto;
-import com.kakaobank.KakaoFriendTransfer.repository.*;
+import com.kakaobank.KakaoFriendTransfer.mapper.TransferMapper;
+import com.kakaobank.KakaoFriendTransfer.repository.jpa.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -34,9 +37,12 @@ public class RepositoryTest {
 
     @Autowired
     private TransferRepository transferRepository;
+    @Autowired
+    private TransferMapper transferMapper;
 
     @BeforeEach
     public void setData() {
+        /*
         // Bank
         List<Bank> bankList = new ArrayList<>();
         Bank bank = new Bank();
@@ -109,17 +115,18 @@ public class RepositoryTest {
 
         customerAccountRepository.saveAndFlush(customerAccount);
         customerAccountRepository.saveAndFlush(customerAccount2);
-
+        */
 
         // Transfer
         TransferDto transferDto = new TransferDto();
-        transferDto.setSendCustomerAccount(customerAccount);
-        transferDto.setReceiveCustomerAccount(customerAccount2);
+        transferDto.setSendBankCode("003"); transferDto.setSendAccountNumber("1234ABC");
+        transferDto.setReceiveBankCode("003"); transferDto.setReceiveAccountNumber("9999TTTT");
         transferDto.setTransferAmt(10000L);
 
-        Transfer transfer = new Transfer(transferDto);
+        Transfer transfer = transferMapper.dtoToNewEntity(transferDto);
         transferRepository.saveAndFlush(transfer);
     }
+
 
     @Test
     public void bankRepositoryTest() {
@@ -139,7 +146,7 @@ public class RepositoryTest {
 
     @Test
     public void customerAccountRepositoryTest() {
-        CustomerAccount findCustomerAccount = customerAccountRepository.findByAccountNumber("1234ABC").get();
+        CustomerAccount findCustomerAccount = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","1234ABC").get();
         assertThat(findCustomerAccount.getAccountNumber()).isEqualTo("1234ABC");
         assertThat(findCustomerAccount.getCustomer().getName()).isEqualTo("Kim");
         assertThat(findCustomerAccount.getKakaoFriend().getUserId()).isEqualTo("sampleId1");
@@ -153,8 +160,29 @@ public class RepositoryTest {
 
     @Test
     public void transferRepositoryTest() {
-        CustomerAccount customerAccount = customerAccountRepository.findByAccountNumber("9999TTTT").get();
+        CustomerAccount customerAccount = customerAccountRepository.findByBankBankCodeAndAccountNumber("003","9999TTTT").get();
         List<Transfer> transferList = transferRepository.findByReceiveCustomerAccount(customerAccount);
         transferList.forEach(transfer -> System.out.println("###Transfer : " + transfer.toString()));
+    }
+
+    @Test
+    @Transactional
+    public void bulkUpdateTest() {
+        IntStream.rangeClosed(1,10).forEach(i -> {
+            System.out.println("### Thread Sleep(sec " + i + ")");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
+
+        String timeoutCriteriaDate = LocalDateTime.now().minusSeconds(5).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        System.out.println("@@@ timeout : " + timeoutCriteriaDate);
+
+        int count = transferRepository.bulkTransferCancel(timeoutCriteriaDate);
+        System.out.println("@@@ update count : " + count);
+        transferRepository.findAll().forEach(transfer -> System.out.println("### Transfer : " + transfer.toString()));
+        assertThat(transferRepository.findAll().get(0).getTransferStatus()).isEqualTo(TransferStatus.CANCEL);
     }
 }

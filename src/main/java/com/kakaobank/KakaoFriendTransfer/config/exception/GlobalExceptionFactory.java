@@ -1,7 +1,7 @@
 package com.kakaobank.KakaoFriendTransfer.config.exception;
 
 import com.kakaobank.KakaoFriendTransfer.domain.ErrCode;
-import com.kakaobank.KakaoFriendTransfer.repository.ErrCodeRepository;
+import com.kakaobank.KakaoFriendTransfer.repository.jpa.ErrCodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

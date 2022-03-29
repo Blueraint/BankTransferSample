@@ -11,10 +11,22 @@ spring:
       charset: UTF-8
       enabled: true
       force: true
+  kafka:
+    bootstrap-servers: localhost:9091
+# disabled auto componentscan for repositories(redis)
+  data:
+    redis:
+      repositories:
+        enabled: false
+
 # properties for swagger2(v3.0.0)
   mvc:
     pathmatch:
       matching-strategy: ANT_PATH_MATCHER
+
+schedule:
+  timeout:
+    day: 1
 
 logging:
   level:

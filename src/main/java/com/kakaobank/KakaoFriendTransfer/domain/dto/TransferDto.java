@@ -23,4 +23,6 @@ public class TransferDto {
     private TransferStatus transferStatus;
 
     private LocalDateTime regDate;
+
+    private LocalDateTime modifyDate;
 }

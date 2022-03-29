@@ -8,6 +8,14 @@ import lombok.Setter;
 import javax.persistence.*;
 
 @Entity
+/*
+@SequenceGenerator(
+        name = "KAKAO_FRIEND_SEQ_GENERATOR",
+        sequenceName = "KAKAO_FRIEND_SEQ",
+        initialValue = 1,
+        allocationSize = 100
+)
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,7 +29,7 @@ public class KakaoFriend extends DateEntity {
     @Column(name = "USER_ID")
     private String userId;
 
-    @OneToOne(mappedBy = "kakaoFriend")
+    @OneToOne(mappedBy = "kakaoFriend", fetch = FetchType.LAZY)
     private CustomerAccount customerAccount;
 
     public KakaoFriend(String userId, CustomerAccount customerAccount) {
