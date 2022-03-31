@@ -3,6 +3,7 @@ package com.kakaobank.KakaoFriendTransfer;
 import com.kakaobank.KakaoFriendTransfer.domain.*;
 import com.kakaobank.KakaoFriendTransfer.repository.jpa.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,11 +18,12 @@ import java.util.List;
 public class LocalInitialization {
     private final InitMemberService initMemberService;
 
+
     @PostConstruct
     public void init() {
         initMemberService.initializationData();
         initMemberService.initializationErrCode();
-        initMemberService.initializationRedis();
+        initMemberService.initializationCache();
     }
 
     @Component
@@ -32,6 +34,7 @@ public class LocalInitialization {
         private final CustomerRepository customerRepository;
         private final ErrCodeRepository errCodeRepository;
         private final KakaoFriendRepository kakaoFriendRepository;
+        private final CacheManager cacheManager;
 
         @Transactional
         public void initializationData() {
@@ -123,8 +126,8 @@ public class LocalInitialization {
             errCodeRepository.saveAll(errCodeList);
         }
 
-        public void initializationRedis() {
-
+        public void initializationCache() {
+            cacheManager.getCache("transfer").clear();
         }
     }
 }

@@ -77,8 +77,8 @@ public class TransferMapper {
 
         transferDto.setTransferAmt( transfer.getTransferAmt() );
         transferDto.setTransferStatus( transfer.getTransferStatus() );
-        transferDto.setRegDate(LocalDateTime.parse(transfer.getRegDate(), formatter) );
-        transferDto.setModifyDate(LocalDateTime.parse(transfer.getModifyDate(), formatter));
+        transferDto.setRegDate( (transfer.getRegDate() == null) ? null : LocalDateTime.parse(transfer.getRegDate(), formatter));
+        transferDto.setModifyDate( (transfer.getModifyDate() == null) ? null : LocalDateTime.parse(transfer.getModifyDate(), formatter));
 
         return transferDto;
     }

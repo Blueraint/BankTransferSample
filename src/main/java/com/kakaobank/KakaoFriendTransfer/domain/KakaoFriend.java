@@ -1,11 +1,13 @@
 package com.kakaobank.KakaoFriendTransfer.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.io.Serializable;
 
 @Entity
 /*
@@ -20,7 +22,7 @@ import javax.persistence.*;
 @Setter
 @NoArgsConstructor
 @Table(name = "KAKAO_FRIEND")
-public class KakaoFriend extends DateEntity {
+public class KakaoFriend extends DateEntity implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     @Column(name = "KAKAO_FRIEND_SEQ")
@@ -30,6 +32,7 @@ public class KakaoFriend extends DateEntity {
     private String userId;
 
     @OneToOne(mappedBy = "kakaoFriend", fetch = FetchType.LAZY)
+    @JsonIgnore
     private CustomerAccount customerAccount;
 
     public KakaoFriend(String userId, CustomerAccount customerAccount) {

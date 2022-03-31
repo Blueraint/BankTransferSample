@@ -10,6 +10,7 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 
 @Entity
 /*
@@ -33,20 +34,20 @@ public class Transfer extends DateEntity implements Serializable {
     @Column(name = "TRN_DT")
     private String trnDt;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(
             name = "SEND_ACCOUNT_ID",
             nullable = false
     )
-    @JsonIgnore
+//    @JsonIgnore
     private CustomerAccount sendCustomerAccount;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(
             name = "RCV_ACCOUNT_ID",
             nullable = false
     )
-    @JsonIgnore
+//    @JsonIgnore
     private CustomerAccount receiveCustomerAccount;
 
     @Column(name = "TRANSFER_AMT")
@@ -68,6 +69,10 @@ public class Transfer extends DateEntity implements Serializable {
         this.modifyDate = LocalDateTime.now();
     }
      */
+
+    // Class Extends시에 명시적으로 선언하여야 Serialization 가능하다!
+    private String regDate;
+    private String modifyDate;
 
     // Valid(Account) Constructor
     public Transfer(TransferDto transferDto, CustomerAccount sendCustomerAccount, CustomerAccount receiveCustomerAccount) {
@@ -101,6 +106,8 @@ public class Transfer extends DateEntity implements Serializable {
         receiveCustomerAccount.setBalance(balanceAmt);
     }
 
+
+
     @Override
     public String toString() {
         return "Transfer{" +
@@ -111,6 +118,7 @@ public class Transfer extends DateEntity implements Serializable {
                 ", transferAmt=" + transferAmt +
                 ", transferStatus=" + transferStatus +
                 ", regDate=" + regDate +
+                ", modifyDate=" + modifyDate +
                 '}';
     }
 }

@@ -1,22 +1,33 @@
 package com.kakaobank.KakaoFriendTransfer.service;
 
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalException;
 import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalExceptionFactory;
 import com.kakaobank.KakaoFriendTransfer.domain.Transfer;
 import com.kakaobank.KakaoFriendTransfer.domain.TransferStatus;
+import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferDto;
 import com.kakaobank.KakaoFriendTransfer.mapper.TransferMapper;
 import com.kakaobank.KakaoFriendTransfer.repository.jpa.CustomerAccountRepository;
 import com.kakaobank.KakaoFriendTransfer.repository.jpa.TransferRepository;
 import com.kakaobank.KakaoFriendTransfer.repository.redis.RedisTransferRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.LockModeType;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,7 +40,11 @@ public class TransferServiceImpl implements TransferService{
     private final CustomerAccountRepository customerAccountRepository;
     private final GlobalExceptionFactory globalExceptionFactory;
     private final TransferMapper transferMapper;
-    private final RedisTransferRepository redisTransferRepository;
+    private final CacheManager cacheManager;
+
+    private final static String HashKey = "transferFind";
+    private final static String ExpireHashKey = "transferExpire";
+
 
     /*
     * RedisCache 관련
@@ -38,7 +53,7 @@ public class TransferServiceImpl implements TransferService{
     * https://www.baeldung.com/spring-boot-redis-cache
     * */
     @Override
-    @Cacheable(key = "#id", value="transfer", unless = "#result == null")
+    @Cacheable(key = "#id", value=HashKey, unless = "#result == null")
     public Transfer findTransfer(Long id) {
         // 1. Find by Redis
         /*
@@ -62,6 +77,21 @@ public class TransferServiceImpl implements TransferService{
         return null;
     }
 
+    // not used
+    @Override
+    @Cacheable(key = "#id", value="transferDto", unless = "#result == null")
+    public TransferDto findTransferDto(Long id) {
+        Optional<Transfer> optionalTransfer = transferRepository.findById(id);
+        // 2-1. Save(Update) Redis
+
+        if(!optionalTransfer.isEmpty()) {
+            Transfer transfer = optionalTransfer.get();
+//            redisTransferRepository.save(transfer);
+            return transferMapper.entityToDto(transfer);
+        }
+        return null;
+    }
+
     @Override
     public List<Transfer> findTransferListBySender(String sendKakaoUserId) {
         return transferRepository.findBySendCustomerAccountKakaoFriendUserId(sendKakaoUserId);
@@ -80,13 +110,39 @@ public class TransferServiceImpl implements TransferService{
         else return true;
     }
 
-    @Override
-    @Transactional
-    @CachePut(key = "#id", value = "transfer")
-    public Transfer save(Transfer transfer) {
+//    @CachePut(key = "#id", value = ExpireHashKey)
+    public Transfer saveNew(Transfer transfer) {
         //  Save Database
         transferRepository.save(transfer);
 
+        log.info("### saveNew Entity : {}",transfer.toString());
+        log.info("### saveNew Redis Serializer : {}",new JdkSerializationRedisSerializer().serialize(transfer));
+        log.info("### saveNew Redis Serializer to Deserializer : {}",new JdkSerializationRedisSerializer().deserialize(new JdkSerializationRedisSerializer().serialize(transfer)));
+
+        // 저장 후 반드시 캐시에 넣는다
+        cacheManager.getCache(ExpireHashKey).put(transfer.getId(), transfer);
+        cacheManager.getCache(HashKey).put(transfer.getId(), transfer);
+        return transfer;
+    }
+
+    @Override
+    @Transactional
+//    @Caching(evict = {@CacheEvict(key = "#id", value = "transfer")}, put = {@CachePut(key = "#id", value = "transfer")})
+    @CachePut(key = "#transferId", value = HashKey)
+    public Transfer save(Long transferId, Transfer transfer) {
+        if(transferId != null) {
+            log.info("### CacheManager Data : {}", cacheManager.getCache("transfer").get(transferId).get().toString());
+            cacheManager.getCache(HashKey).evict(transferId);
+        }
+        //  Save Database
+        transferRepository.save(transfer);
+
+        log.info("### Entity : {}",transfer.toString());
+        log.info("### Redis Serializer : {}",new JdkSerializationRedisSerializer().serialize(transfer));
+        log.info("### Redis Serializer to Deserializer : {}",new JdkSerializationRedisSerializer().deserialize(new JdkSerializationRedisSerializer().serialize(transfer)));
+
+        // 저장 후 반드시 캐시에 넣는다
+        cacheManager.getCache(HashKey).put(transfer.getId(), transfer);
         return transfer;
     }
 
@@ -117,7 +173,10 @@ public class TransferServiceImpl implements TransferService{
         log.debug("Create New Transfer : {}", transfer.toString());
         // 이체내역 저장
 //        transferRepository.save(transfer);
-        save(transfer);
+
+        // 신규저장은 Expire를 위해 따로 탄다
+        saveNew(transfer);
+//        save(transfer.getId(),transfer);
         // 계좌변경사항 저장
         customerAccountRepository.save(transfer.getSendCustomerAccount());
     }
@@ -150,11 +209,12 @@ public class TransferServiceImpl implements TransferService{
 
         // 이체내역 상태값 변경
         transfer.setTransferStatus(TransferStatus.CANCEL);
+        transfer.setModifyDate(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
 
         log.debug("Cancel Current Transfer : {}", transfer.toString());
         // 이체내역 update
 //        transferRepository.save(transfer);
-        save(transfer);
+        save(transfer.getId(), transfer);
         // 계좌변경사항 저장
         customerAccountRepository.save(transfer.getSendCustomerAccount());
 
@@ -189,11 +249,12 @@ public class TransferServiceImpl implements TransferService{
 
         // 이체내역 상태값 변경
         transfer.setTransferStatus(TransferStatus.SUCCESS);
+        transfer.setModifyDate(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
 
         log.debug("Confirm Transfer : {}", transfer.toString());
         // 이체내역 update
 //        transferRepository.save(transfer);
-        save(transfer);
+        save(transfer.getId(), transfer);
         // 계좌변경사항 저장
         customerAccountRepository.save(transfer.getReceiveCustomerAccount());
 

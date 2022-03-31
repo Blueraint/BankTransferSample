@@ -6,7 +6,6 @@ import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.OptimisticLockType;
 import org.hibernate.annotations.OptimisticLocking;
-import org.springframework.data.redis.core.RedisHash;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -52,11 +51,11 @@ public class CustomerAccount extends DateEntity implements Serializable {
     @Column(name = "ACCOUNT_NUMBER")
     private String accountNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "CUSTOMER_ID")
     private Customer customer;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "KAKAO_FRIEND_SEQ")
     private KakaoFriend kakaoFriend;
 
@@ -81,16 +80,16 @@ public class CustomerAccount extends DateEntity implements Serializable {
         this.accountNumber = accountNumber;
     }
 
-    @Override
-    public String toString() {
-        return "CustomerAccount{" +
-                "id=" + id +
-                ", bankCode=" + bank.getBankCode() +
-                ", accountNumber='" + accountNumber + '\'' +
-//                ", customerCi=" + customer.getCi() +
-//                ", kakaoFriendUserId=" + ((kakaoFriend!=null)?kakaoFriend.getUserId():null) +
-                ", balance=" + balance +
-                ", isCertified=" + isCertified +
-                '}';
-    }
+//    @Override
+//    public String toString() {
+//        return "CustomerAccount{" +
+//                "id=" + id +
+//                ", bankCode=" + bank.getBankCode() +
+//                ", accountNumber='" + accountNumber + '\'' +
+////                ", customerCi=" + customer.getCi() +
+////                ", kakaoFriendUserId=" + ((kakaoFriend!=null)?kakaoFriend.getUserId():null) +
+//                ", balance=" + balance +
+//                ", isCertified=" + isCertified +
+//                '}';
+//    }
 }

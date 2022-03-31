@@ -32,7 +32,7 @@ dependencies {
 
 
 	compileOnly 'org.projectlombok:lombok'
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+//	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'com.h2database:h2'
 	implementation group: 'com.oracle.database.jdbc', name: 'ojdbc8', version: '21.5.0.0'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'

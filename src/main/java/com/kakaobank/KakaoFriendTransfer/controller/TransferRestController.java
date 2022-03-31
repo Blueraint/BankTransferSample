@@ -29,7 +29,9 @@ public class TransferRestController {
 
     @GetMapping("/{id}")
     public TransferDto findTransfer(@PathVariable Long id) {
-        return transferMapper.entityToDto(transferService.findTransfer(id));
+        Transfer transfer = transferService.findTransfer(id);
+        return transferMapper.entityToDto(transfer);
+//        return transferService.findTransferDto(id);
     }
 
     @GetMapping("/sender/{kakaoUserId}")

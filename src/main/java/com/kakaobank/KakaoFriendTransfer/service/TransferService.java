@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface TransferService {
     Transfer findTransfer(Long id);
+    TransferDto findTransferDto(Long id);
 
     List<Transfer> findTransferListBySender(String sendKakaoUserId);
     List<Transfer> findTransferListByReceiver(String receiveKakaoUserId);
@@ -20,5 +21,5 @@ public interface TransferService {
 
     Transfer confirmTransfer(Long id);
 
-    Transfer save(Transfer transfer);
+    Transfer save(Long id, Transfer transfer);
 }
