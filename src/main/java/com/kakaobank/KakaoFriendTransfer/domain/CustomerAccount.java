@@ -33,7 +33,12 @@ import java.time.format.DateTimeFormatter;
 @NoArgsConstructor
 @OptimisticLocking(type = OptimisticLockType.ALL)
 @DynamicUpdate
-@Table(name="ACCOUNT")
+@Table(name="ACCOUNT",
+        indexes = {
+            // index because of TransferMapper.findAccountByBankCodeAndAccountNumber
+            @Index(name = "ACCOUNT_IDX1", columnList = "BANK_ID, ACCOUNT_NUMBER", unique = true)
+        }
+)
 public class CustomerAccount extends DateEntity implements Serializable {
     @Id
     @org.springframework.data.annotation.Id
@@ -41,7 +46,7 @@ public class CustomerAccount extends DateEntity implements Serializable {
     @Column(name = "ACCOUNT_ID")
     private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(
             name = "BANK_ID",
             nullable = false

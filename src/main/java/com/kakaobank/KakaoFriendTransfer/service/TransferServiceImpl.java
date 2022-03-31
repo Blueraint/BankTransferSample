@@ -115,9 +115,9 @@ public class TransferServiceImpl implements TransferService{
         //  Save Database
         transferRepository.save(transfer);
 
-        log.info("### saveNew Entity : {}",transfer.toString());
-        log.info("### saveNew Redis Serializer : {}",new JdkSerializationRedisSerializer().serialize(transfer));
-        log.info("### saveNew Redis Serializer to Deserializer : {}",new JdkSerializationRedisSerializer().deserialize(new JdkSerializationRedisSerializer().serialize(transfer)));
+        log.debug("### saveNew Entity : {}",transfer.toString());
+        log.debug("### saveNew Redis Serializer : {}",new JdkSerializationRedisSerializer().serialize(transfer));
+        log.debug("### saveNew Redis Serializer to Deserializer : {}",new JdkSerializationRedisSerializer().deserialize(new JdkSerializationRedisSerializer().serialize(transfer)));
 
         // 저장 후 반드시 캐시에 넣는다
         cacheManager.getCache(ExpireHashKey).put(transfer.getId(), transfer);
@@ -125,13 +125,17 @@ public class TransferServiceImpl implements TransferService{
         return transfer;
     }
 
+    /*
+    * Cancel, Success 등 이체내역 완료에 쓰임
+    * Redis Expire 을 종료시켜 자동이체 삭제 transaction을 막는다
+    * */
     @Override
     @Transactional
 //    @Caching(evict = {@CacheEvict(key = "#id", value = "transfer")}, put = {@CachePut(key = "#id", value = "transfer")})
     @CachePut(key = "#transferId", value = HashKey)
     public Transfer save(Long transferId, Transfer transfer) {
         if(transferId != null) {
-            log.info("### CacheManager Data : {}", cacheManager.getCache("transfer").get(transferId).get().toString());
+//            log.info("### CacheManager Data : {}", cacheManager.getCache("transfer").get(transferId).get().toString());
             cacheManager.getCache(HashKey).evict(transferId);
         }
         //  Save Database
@@ -140,6 +144,9 @@ public class TransferServiceImpl implements TransferService{
         log.info("### Entity : {}",transfer.toString());
         log.info("### Redis Serializer : {}",new JdkSerializationRedisSerializer().serialize(transfer));
         log.info("### Redis Serializer to Deserializer : {}",new JdkSerializationRedisSerializer().deserialize(new JdkSerializationRedisSerializer().serialize(transfer)));
+
+        // Expire Redis value Delete
+        cacheManager.getCache(ExpireHashKey).evict(transfer.getId());
 
         // 저장 후 반드시 캐시에 넣는다
         cacheManager.getCache(HashKey).put(transfer.getId(), transfer);

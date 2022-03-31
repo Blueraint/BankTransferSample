@@ -3,6 +3,7 @@ package com.kakaobank.KakaoFriendTransfer.listener;
 import com.kakaobank.KakaoFriendTransfer.service.TransferService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.cache.CacheKeyPrefix;
 import org.springframework.data.redis.connection.Message;
@@ -38,16 +39,28 @@ public class RedisKeyExpirationListener extends KeyExpirationEventMessageListene
 
     /*
     * Redis Expire Listener에 의해 event subscribe 한 후 Auto Cancel 수행
+    * 수억건의 Redis Data가 Expire되는데 이걸 모두 listen하여 처리하긴 어렵다 -> 실무에서 쓰기는 쉽지 않을듯
     */
     @Override
     @Transactional
     public void onMessage(Message message, byte[] pattern) {
+        String expirePrefixKey = CacheKeyPrefix.simple().compute(ExpireHashKey);
+        String keyBody = new String(message.getBody());
+
+        if(!keyBody.startsWith(expirePrefixKey)) {
+            log.info("### This is not expire target key");
+            return;
+        }
+
         log.info("### Redis Key Expire Listener ### Channel : {}. {}", message.getChannel(), new String(message.getChannel()));
-        log.info("### Redis Key Expire Listener ### Body : {}, {}", message.getBody(), new String(message.getBody()));
+        log.info("### Redis Key Expire Listener ### Body : {}, {}", message.getBody(), keyBody);
         log.info("### Redis Key Expire Listener ### String : {}", message.toString());
         log.info("### Cachekey Prefix : {}", CacheKeyPrefix.simple().compute(ExpireHashKey));
 
-        message.toString().
+        String keyStr = StringUtils.substringAfterLast(keyBody, expirePrefixKey);
+
+        log.info("### Expired Key Value : {}", keyStr);
+        transferService.cancelTransfer(Long.valueOf(keyStr));
 
         super.onMessage(message, pattern);
     }

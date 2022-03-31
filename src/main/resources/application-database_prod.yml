@@ -6,6 +6,7 @@ spring:
     username: "batchtest"
     password: "batchtest"
     hikari:
+      # Connection Pool 관련해서 -> 왜 이렇게 했는지
       connection-timeout: 5000
       validation-timeout: 1000
       minimum-idle: 5

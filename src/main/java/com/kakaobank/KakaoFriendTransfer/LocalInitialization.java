@@ -36,6 +36,9 @@ public class LocalInitialization {
         private final KakaoFriendRepository kakaoFriendRepository;
         private final CacheManager cacheManager;
 
+        private final static String HashKey = "transferFind";
+        private final static String ExpireHashKey = "transferExpire";
+
         @Transactional
         public void initializationData() {
             List<Bank> bankList = new ArrayList<>();
@@ -127,7 +130,8 @@ public class LocalInitialization {
         }
 
         public void initializationCache() {
-            cacheManager.getCache("transfer").clear();
+            cacheManager.getCache(HashKey).clear();
+            cacheManager.getCache(ExpireHashKey).clear();
         }
     }
 }
