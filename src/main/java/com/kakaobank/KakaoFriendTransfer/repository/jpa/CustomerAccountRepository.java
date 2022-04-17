@@ -17,8 +17,10 @@ public interface CustomerAccountRepository extends JpaRepository<CustomerAccount
 
     /* 계좌 내역 찾는 Service 를 Redis 통해서 Caching */
     @EntityGraph(attributePaths = {"bank", "customer", "kakaoFriend"})
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<CustomerAccount> findByBankBankCodeAndAccountNumber(String bankCode, String accountNumber);
 
+    @Lock(LockModeType.PESSIMISTIC_READ)
     Optional<CustomerAccount> findByKakaoFriendUserId(String userId);
 
     /*

@@ -25,7 +25,6 @@ public class ScheduleTaskService {
     private final CustomerAccountRepository customerAccountRepository;
 
     @Scheduled(cron = "0 * * * * *")
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Transactional
     public void cancelTransferByTimeout() {
         log.info("SCHEDULING EXECUTE START");

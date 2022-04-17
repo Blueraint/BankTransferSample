@@ -1,7 +1,5 @@
 package com.kakaobank.KakaoFriendTransfer.service;
 
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalException;
 import com.kakaobank.KakaoFriendTransfer.config.exception.GlobalExceptionFactory;
 import com.kakaobank.KakaoFriendTransfer.domain.Transfer;
@@ -10,18 +8,13 @@ import com.kakaobank.KakaoFriendTransfer.domain.dto.TransferDto;
 import com.kakaobank.KakaoFriendTransfer.mapper.TransferMapper;
 import com.kakaobank.KakaoFriendTransfer.repository.jpa.CustomerAccountRepository;
 import com.kakaobank.KakaoFriendTransfer.repository.jpa.TransferRepository;
-import com.kakaobank.KakaoFriendTransfer.repository.redis.RedisTransferRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
-import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -161,7 +154,6 @@ public class TransferServiceImpl implements TransferService{
      */
     @Override
     @Transactional
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public void saveTransfer(Transfer transfer) throws GlobalException {
         if(!transferAccountValidation(transfer))
 //            throw new IllegalStateException("Invalid Sender/Receiver Account.");
@@ -190,7 +182,6 @@ public class TransferServiceImpl implements TransferService{
 
     @Override
     @Transactional
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public Transfer cancelTransfer(Long id) {
         /* 존재하는 거래내역 찾는 경우 Redis를 통해서 대기중인 이체내역을 Cache에서 찾아온다 */
         Transfer transfer = findTransfer(id);
@@ -230,7 +221,6 @@ public class TransferServiceImpl implements TransferService{
 
     @Override
     @Transactional
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public Transfer confirmTransfer(Long id) {
         /* 존재하는 거래내역 찾는 경우 Redis를 통해서 대기중인 이체내역을 Cache에서 찾아온다 */
         Transfer transfer = findTransfer(id);

@@ -55,8 +55,8 @@ public class CacheConfig {
     private Map<String, RedisCacheConfiguration> customConfigurationMap() {
         Map<String, RedisCacheConfiguration> customConfigurationMap = new HashMap<>();
 
-        customConfigurationMap.put(HashKey, defaultRedisCacheConfiguration().entryTtl(Duration.ofMinutes(1)));
-        customConfigurationMap.put(ExpireHashKey, defaultRedisCacheConfiguration().entryTtl(Duration.ofSeconds(30)));
+        customConfigurationMap.put(HashKey, defaultRedisCacheConfiguration().entryTtl(Duration.ofMinutes(3)));
+        customConfigurationMap.put(ExpireHashKey, defaultRedisCacheConfiguration().entryTtl(Duration.ofSeconds(120)));
 
         return customConfigurationMap;
     }
